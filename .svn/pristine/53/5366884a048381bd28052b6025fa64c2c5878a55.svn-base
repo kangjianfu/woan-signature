@@ -1,0 +1,65 @@
+package com.woaner.security.utils;
+
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.TimeZone;
+
+import javax.crypto.Mac;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+import javax.xml.bind.annotation.adapters.HexBinaryAdapter;
+
+/**
+ * 
+ * @author kangjianfu
+ * 本类是一个获取“signature” 的工具类 。
+ *  是专门针对访问 aws API 获取的签名用的。
+ *  对于不同密钥，获取的签名也不同
+ */
+public class Signature {
+	/**
+	 * 
+	 * 这个签名的时间戳为时间标准时间	=
+	 * @param secret_key  : 用户公钥
+	 * @param data : 需要访问的api的uri 例如 /api/20140928/task_list
+	 * @param service_code : 服务码
+	 * @return 签名信息 
+	 * @throws Exception
+	 */
+    public static String getSignature(String secret_key,String uri,String service_code) throws Exception {  
+    		//判断输入参数都不能为空
+    	if (StringUtils.verify_not_empty(secret_key)&&StringUtils.verify_not_empty(uri)&&StringUtils.verify_not_empty(service_code)) {
+    		//获取时间戳
+    		String timestamp=getTimeStamp("GMT+8");
+    		StringBuffer dataBuffer =new StringBuffer();
+    		dataBuffer.append(uri);
+    		dataBuffer.append("service_code="+service_code);
+    		dataBuffer.append(timestamp);
+    		byte[] data= dataBuffer.toString().getBytes();
+        	byte[] key = secret_key.getBytes();
+            // 还原密钥  
+            SecretKey secretKey = new SecretKeySpec(key, "HmacSHA256");  
+            // 实例化Mac  
+            Mac mac = Mac.getInstance(secretKey.getAlgorithm());  
+            //初始化mac  
+            mac.init(secretKey);  
+            //执行消息摘要  
+            byte[] digest = mac.doFinal(data);  
+            return new HexBinaryAdapter().marshal(digest).toLowerCase();//转为十六进制的字符串  
+		}else {
+			throw new NullPointerException("参数为空，请重检查后在调用啊");
+		}
+    	
+    }  
+    
+    private static String getTimeStamp(String timeZone){
+		TimeZone time = TimeZone.getTimeZone(timeZone); //设置为国际时间
+		TimeZone.setDefault(time);// 设置时区
+		Calendar calendar = Calendar.getInstance(time);// 获取实例
+		DateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");//构造格式化模板
+		Date date = calendar.getTime(); //获取Date对象
+		return format.format(date);//对象进行格式化，获取字符串格式的输出
+}
+}
